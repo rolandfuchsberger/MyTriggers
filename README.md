@@ -213,6 +213,9 @@ for (sObjectField field : MyTriggers.getChangedFields(fieldsToCheck,record,recor
 // add all records in the current update context
 MyTriggers.addUpdatedIds(triggerOldMap.keySet());
 
+// if the recursion control should be limited to a specific trigger handler class, use:
+this.addUpdatedIdsForType(triggerOldMap.keySet());
+
 // and use this to return only records which havent been processed before
 List<Sobject> untouchedRecords = MyTriggers.getRecordsNotYetProcessed();
 ```

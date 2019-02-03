@@ -172,11 +172,36 @@ private class MyTriggersTest {
 			new User(Id = null)
 		};
 
-		hndl.doConstruct(records);
+		hndl.doConstruct(records, AccountHandler.class);
 		myTriggers.addUpdatedIds(new Set<Id>{UserInfo.getUserId()});
 
 		system.assertEquals(true,myTriggers.getUpdatedIds().contains(UserInfo.getUserId()));
 		system.assertEquals(null,hndl.getNonRecursiveRecords().get(0).Id,'should not return any record which id is returned by myTriggers.getUpdatedIds()');
+
+		Test.stopTest();
+	}
+
+	// test for recusion control per class
+	private static testMethod void recursionControlPerClassTest(){
+
+		Test.startTest();
+
+		AccountHandler hndl = new AccountHandler();
+		sObject[] records = new sObject[] {
+			new User(Id = UserInfo.getUserId()),
+			new User(Id = null)
+		};
+
+		hndl.doConstruct(records, AccountHandler.class);
+		hndl.addUpdatedIdsForType(new Set<Id>{UserInfo.getUserId()});
+
+		system.assertEquals(false,myTriggers.getUpdatedIds().contains(UserInfo.getUserId()));
+		system.assertEquals(null,hndl.getNonRecursiveRecords().get(0).Id,'should not return any record which id is returned by myTriggers.getUpdatedIds()');
+
+		//a different class name must be used here!
+		AccountHandlerWithoutOverride hndl2 = new AccountHandlerWithoutOverride();
+		hndl2.doConstruct(records, AccountHandlerWithoutOverride.class);
+		system.assertEquals(UserInfo.getUserId(),hndl2.getRecordsNotYetProcessed().get(0).Id,'recursion control of hndl should not influnce recursion control of hndl2 if addUpdatedIdsForClass method is used');
 
 		Test.stopTest();
 	}
