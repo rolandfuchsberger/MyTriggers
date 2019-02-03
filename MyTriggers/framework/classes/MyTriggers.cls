@@ -27,7 +27,7 @@ global virtual class MyTriggers {
     private static String triggerEventMock;
 
     /**
-     * used to store type of current instance for the recursion control in the variable alreadyUpdatedIdsPerClass
+     * Used to store type of current instance for the recursion control in the variable alreadyUpdatedIdsPerClass
      * this is required due to some limitations in apex, which don't allow retrieving the type of an instance
      */
     private Type handlerType;
@@ -48,8 +48,7 @@ global virtual class MyTriggers {
     /**
      * used instead of constructor since handlers are instanciated with an empty contructor
      * @param  records Array of sObjects. for INSERT & UPDATE Trigger.new otherwise Trigger.old
-     * @param classNamespacePrefix namespace of the class that is constructed (required for per class recursion control)
-     * @param className class name of the class
+     * @param handlerType Type of current instance - required for recursion control
      * @return         instance
      */
     global virtual myTriggers doConstruct(sObject[] records, Type handlerType){
@@ -157,9 +156,9 @@ global virtual class MyTriggers {
     }
 
     /**
-     *Contains a map of Type.getName() and a set of already updated Ids
-     *the getRecordsNotYetProcessed() method only returns Ids where the Ids are neither included in
-     *the alreadyUpdatedIds set or in the alreadyUpdatedIdsForType.get(<<currentType>>.getName()) set
+     * Contains a map of Type.getName() and a set of already updated Ids
+     * the getRecordsNotYetProcessed() method only returns Ids where the Ids are neither included in
+     * the alreadyUpdatedIds set or in the alreadyUpdatedIdsForType.get(<<currentType>>.getName()) set
      */
     static Map<string, Set<Id>> alreadyUpdatedIdsForType = new Map<string, Set<Id>>(); 
  
