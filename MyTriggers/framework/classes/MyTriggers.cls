@@ -26,12 +26,6 @@ global virtual class MyTriggers {
     @TestVisible
     private static String triggerEventMock;
 
-    /**
-     * Used to store type of current instance for the recursion control in the variable alreadyUpdatedIdsPerClass
-     * this is required due to some limitations in apex, which don't allow retrieving the type of an instance
-     */
-    private Type handlerType;
-
 	/**
      * cast records to appropriate sObjectType in implementations
      */
@@ -48,14 +42,11 @@ global virtual class MyTriggers {
     /**
      * used instead of constructor since handlers are instanciated with an empty contructor
      * @param  records Array of sObjects. for INSERT & UPDATE Trigger.new otherwise Trigger.old
-     * @param handlerType Type of current instance - required for recursion control
      * @return         instance
      */
-    global virtual myTriggers doConstruct(sObject[] records, Type handlerType){
+    global virtual myTriggers doConstruct(sObject[] records){
 
     	this.records = records;
-        this.handlerType = handlerType;
-
         return this;
     }
 	
@@ -156,6 +147,17 @@ global virtual class MyTriggers {
     }
 
     /**
+     * Returns the class name of the current instance
+     * Assumption 1: class does not override the toSring() method
+     * Assumption 2: It is not required to differentiate between top level classes and subclasses 
+     * (e.g.: MyTriggersTest.AccountHandler and AccountHandler are treated as the same class)
+    */
+    @TestVisible
+    private String getClassName(){
+        return String.valueOf(this).substringBefore(':');
+    }
+
+    /**
      * Contains a map of Type.getName() and a set of already updated Ids
      * the getRecordsNotYetProcessed() method only returns Ids where the Ids are neither included in
      * the alreadyUpdatedIds set or in the alreadyUpdatedIdsForType.get(<<currentType>>.getName()) set
@@ -167,12 +169,12 @@ global virtual class MyTriggers {
      * @param  idSet usally Trigger.newMap.keyset()
      */
     global void addUpdatedIdsForType(Set<Id> idSet){
-        if(!alreadyUpdatedIdsForType.containsKey(handlerType.getName()))
+        if(!alreadyUpdatedIdsForType.containsKey(getClassName()))
         {
-            alreadyUpdatedIdsForType.put(handlerType.getName(), new Set<Id>());
+            alreadyUpdatedIdsForType.put(getClassName(), new Set<Id>());
         }
 
-        alreadyUpdatedIdsForType.get(handlerType.getName()).addAll(idSet);    
+        alreadyUpdatedIdsForType.get(getClassName()).addAll(idSet);    
     }
 
     
@@ -197,18 +199,15 @@ global virtual class MyTriggers {
 
         for (sObject record : records) {
             Id recordId = (Id)record.get('Id');
-        	if (!updatedIds.contains(recordId)) {
-                if(alreadyUpdatedIdsForType.containsKey(handlerType.getName())){
-                    if(!alreadyUpdatedIdsForType.get(handlerType.getName()).contains(recordId)){
-                        //add if the id is neither in the updatedIds set and in the alreadyUpdatedIdsPerClass.get(classFullName) set
-                        recordsNotYetProcessed.add(record);
-                    }
-                }
-                else {
-                    //add if the id is not in the updatedIds set and no set for this class exists in the alreadyUpdatedIdsPerClass map
-                    recordsNotYetProcessed.add(record);
-                }
-        	}
+            //add if the id is neither in the updatedIds set and in the alreadyUpdatedIdsPerClass.get(getClassName()) set
+            if(!updatedIds.contains(recordId) && alreadyUpdatedIdsForType.containsKey(getClassName())
+            && !alreadyUpdatedIdsForType.get(getClassName()).contains(recordId)){
+                recordsNotYetProcessed.add(record);
+            }
+            //add if the id is not in the updatedIds set and no set for this class exists in the alreadyUpdatedIdsPerClass map
+            else if(!updatedIds.contains(recordId) && !alreadyUpdatedIdsForType.containsKey(getClassName())) {
+                recordsNotYetProcessed.add(record);
+            }
         }
 
         return recordsNotYetProcessed;
@@ -619,27 +618,27 @@ global virtual class MyTriggers {
         Set<String> disabledTriggerEvents = getDisabledEvents(handlerType);
         if (isBefore) {
             if (isInsert && !disabledTriggerEvents.contains(System.TriggerOperation.BEFORE_INSERT.name())) {
-                handler.doConstruct(triggerNew, handlerType).onBeforeInsert(); 
+                handler.doConstruct(triggerNew).onBeforeInsert(); 
             }
             else if (isUpdate && !disabledTriggerEvents.contains(System.TriggerOperation.BEFORE_UPDATE.name())) {
-                 handler.doConstruct(triggerNew, handlerType).onBeforeUpdate(triggerOldMap);
+                 handler.doConstruct(triggerNew).onBeforeUpdate(triggerOldMap);
             }
             else if (isDelete && !disabledTriggerEvents.contains(System.TriggerOperation.BEFORE_DELETE.name())) {
-                 handler.doConstruct(triggerOldMap.values(), handlerType).onBeforeDelete();
+                 handler.doConstruct(triggerOldMap.values()).onBeforeDelete();
             }
         } else {
             if (isInsert && !disabledTriggerEvents.contains(System.TriggerOperation.AFTER_INSERT.name())) {
-                handler.doConstruct(triggerNew, handlerType).onAfterInsert();
+                handler.doConstruct(triggerNew).onAfterInsert();
             } 
             else if (isUpdate && !disabledTriggerEvents.contains(System.TriggerOperation.AFTER_UPDATE.name())) {
                 system.debug('On After Handler: ' + handler);
-                handler.doConstruct(triggerNew, handlerType).onAfterUpdate(triggerOldMap);
+                handler.doConstruct(triggerNew).onAfterUpdate(triggerOldMap);
             }
             else if (isDelete && !disabledTriggerEvents.contains(System.TriggerOperation.AFTER_DELETE.name())) {
-                handler.doConstruct(triggerOldMap.values(), handlerType).onAfterDelete();
+                handler.doConstruct(triggerOldMap.values()).onAfterDelete();
             }
             else if (isUndelete && !disabledTriggerEvents.contains(System.TriggerOperation.AFTER_UNDELETE.name())) {
-                handler.doConstruct(triggerNew, handlerType).onAfterUndelete();
+                handler.doConstruct(triggerNew).onAfterUndelete();
             }
         }
     }

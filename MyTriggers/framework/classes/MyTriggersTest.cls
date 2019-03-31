@@ -172,7 +172,7 @@ private class MyTriggersTest {
 			new User(Id = null)
 		};
 
-		hndl.doConstruct(records, AccountHandler.class);
+		hndl.doConstruct(records);
 		myTriggers.addUpdatedIds(new Set<Id>{UserInfo.getUserId()});
 
 		system.assertEquals(true,myTriggers.getUpdatedIds().contains(UserInfo.getUserId()));
@@ -181,27 +181,38 @@ private class MyTriggersTest {
 		Test.stopTest();
 	}
 
+	// test if MyTriggers.getClassName() returns the class name
+	private static testMethod void getClassNameTest()
+	{
+		AccountHandler hndl = new AccountHandler();
+		String className = hndl.getClassName();
+		//getClassName doesn't yield the fully qualified class name, but only the last part if the class is a subclasses
+		//(e.g. MyTriggersTest.AccountHandler -> AccountHandler)
+		system.assertEquals(className,('.'+String.valueOf(AccountHandler.class)).substringAfterLast('.'), 'Class names don\'t match. Change in Salesforce API?');
+	}
+
 	// test for recusion control per class
-	private static testMethod void recursionControlPerClassTest(){
+	private static testMethod void recursionControlPerTypeTest(){
 
 		Test.startTest();
 
 		AccountHandler hndl = new AccountHandler();
+		User u1 = new User(Id = UserInfo.getUserId());
 		sObject[] records = new sObject[] {
-			new User(Id = UserInfo.getUserId()),
+			u1,
 			new User(Id = null)
 		};
 
-		hndl.doConstruct(records, AccountHandler.class);
-		hndl.addUpdatedIdsForType(new Set<Id>{UserInfo.getUserId()});
+		hndl.doConstruct(records);
+		hndl.addUpdatedIdsForType(new Set<Id>{u1.Id});
 
-		system.assertEquals(false,myTriggers.getUpdatedIds().contains(UserInfo.getUserId()));
-		system.assertEquals(null,hndl.getNonRecursiveRecords().get(0).Id,'should not return any record which id is returned by myTriggers.getUpdatedIds()');
+		system.assert(!myTriggers.getUpdatedIds().contains(u1.Id), 'The global (class-independent) list of updated ids should not contain the Id added with addUpdatedIdsForType(...)');
+		system.assert(!hndl.getRecordsNotYetProcessed().contains(u1),'Should not return the id added with addUpdatedIdsForType(...)');
 
 		//a different class name must be used here!
 		AccountHandlerWithoutOverride hndl2 = new AccountHandlerWithoutOverride();
-		hndl2.doConstruct(records, AccountHandlerWithoutOverride.class);
-		system.assertEquals(UserInfo.getUserId(),hndl2.getRecordsNotYetProcessed().get(0).Id,'recursion control of hndl should not influnce recursion control of hndl2 if addUpdatedIdsForClass method is used');
+		hndl2.doConstruct(records);
+		system.assert(hndl2.getRecordsNotYetProcessed().contains(u1),'Recursion control of hndl should not affect recursion control of hndl2 if addUpdatedIdsForType(...) method is used');
 
 		Test.stopTest();
 	}
